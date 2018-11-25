@@ -7,9 +7,9 @@ import time
 import random
 from Queue import Queue
 
-extractionQueue = []
-MAX_NUM = 10 # max number of frames
-condition = Condition()
+extractionQueue = Queue(10)
+displayQueue = Queue(10)
+#condition = Condition()
 
 fileName = 'clip.mp4'
 
@@ -19,10 +19,7 @@ class ExtractThread(Thread):
         global fileName
 
         while True:
-            condition.acquire()
-
-            if len(extractionQueue) == MAX_NUM:
-                condition.wait()
+            #condition.acquire()
 
             # Initialize frame count
             count = 0
@@ -44,14 +41,12 @@ class ExtractThread(Thread):
                 jpgAsText = base64.b64encode(jpgImage)
 
                 # add the frame to the buffer
-                extractionQueue.append(jpgAsText)
+                extractionQueue.put(jpgAsText)
 
                 success,image = vidcap.read()
                 print('Reading frame {} {}'.format(count, success))
 
                 count += 1
-                condition.notify()
-                condition.release()
                 time.sleep(random.random())
 
 
@@ -61,22 +56,19 @@ class ExtractThread(Thread):
 class GrayscaleThread(Thread):
     def run(self):
         global extractionQueue
+        global displayQueue
         global fileName
 
         while True:
-            condition.acquire()
-
-            if not extractionQueue:
-                condition.wait()
-
+            #condition.acquire()
+            num = 0
 
             if extractionQueue:
-                num = 0
 
                 print("Converting frame {}".format(num))
 
                 # get the next frame
-                frameAsText = extractionQueue.pop(0)
+                frameAsText = extractionQueue.get()
 
                 # decode the frame
                 jpgRawImage = base64.b64decode(frameAsText)
@@ -87,30 +79,31 @@ class GrayscaleThread(Thread):
                 # get a jpg encoded frame
                 img = cv2.imdecode( jpgImage ,cv2.IMREAD_UNCHANGED)
 
+                #print(img)
+
                 # convert the extracted frame to grayscale
                 grayscaleFrame = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-                extractionQueue.append(grayscaleFrame)
+                extractionQueue.task_done()
+                displayQueue.put(grayscaleFrame)
 
-                condition.notify()
-                condition.release()
+
+                #condition.notify()
+                #condition.release()
                 time.sleep(random.random())
 
 class DisplayThread(Thread):
     def run(self):
-        global extractionQueue
+        global displayQueue
         global fileName
 
         while True:
-            condition.acquire()
-
-            if not extractionQueue:
-                condition.wait()
+            #condition.acquire()
 
             # initialize frame count
             count = 0
-            while extractionQueue:
+            while displayQueue:
                 # get the next frame
-                frameAsText = extractionQueue.pop(0)
+                frameAsText = displayQueue.get()
 
                 # decode the frame
                 jpgRawImage = base64.b64decode(frameAsText)
@@ -129,8 +122,9 @@ class DisplayThread(Thread):
                 if cv2.waitKey(42) and 0xFF == ord("q"):
                     break
 
-                condition.notify()
-                condition.release()
+                #condition.notify()
+                #condition.release()
+                displayQueue.task_done()
                 time.sleep(random.random())
                 count += 1
 
