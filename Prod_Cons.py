@@ -34,6 +34,7 @@ class ExtractThread(Thread):
             success,image = vidcap.read()
 
             print("Reading frame {} {} ".format(count, success))
+
             while success:
 
                 # get a jpg encoded frame
@@ -47,12 +48,13 @@ class ExtractThread(Thread):
 
                 success,image = vidcap.read()
                 print('Reading frame {} {}'.format(count, success))
+
                 count += 1
                 condition.notify()
                 condition.release()
+                time.sleep(random.random())
 
 
-            time.sleep(random.random())
 
             print("Frame extraction complete")
 
@@ -100,32 +102,34 @@ class DisplayThread(Thread):
                 condition.wait()
 
             # initialize frame count
-            num = 0
+            count = 0
+            while extractionQueue:
+                # get the next frame
+                frameAsText = extractionQueue.pop(0)
 
-            # get the next frame
-            frameAsText = extractionQueue.pop(0)
+                # decode the frame
+                jpgRawImage = base64.b64decode(frameAsText)
 
-            # decode the frame
-            jpgRawImage = base64.b64decode(frameAsText)
+                # convert the raw frame to a numpy array
+                jpgImage = np.asarray(bytearray(jpgRawImage), dtype=np.uint8)
 
-            # convert the raw frame to a numpy array
-            jpgImage = np.asarray(bytearray(jpgRawImage), dtype=np.uint8)
+                # get a jpg encoded frame
+                img = cv2.imdecode( jpgImage ,cv2.IMREAD_UNCHANGED)
 
-            # get a jpg encoded frame
-            img = cv2.imdecode( jpgImage ,cv2.IMREAD_UNCHANGED)
+                print("Displaying frame {}".format(count))
 
-            print("Displaying frame {}".format(num))
+                # display the image in a window called "video" and wait 42ms
+                # before displaying the next frame
+                cv2.imshow("Video", img)
+                if cv2.waitKey(42) and 0xFF == ord("q"):
+                    break
 
-            # display the image in a window called "video" and wait 42ms
-            # before displaying the next frame
-            cv2.imshow("Video", img)
-            if cv2.waitKey(42) and 0xFF == ord("q"):
-                break
+                condition.notify()
+                condition.release()
+                time.sleep(random.random())
+                count += 1
 
-            num += 1
-        condition.notify()
-        condition.release()
-        time.sleep(random.random())
+
 
         #print("Finished displaying all frames")
         # cleanup the windows
