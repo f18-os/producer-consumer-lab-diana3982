@@ -66,29 +66,34 @@ class GrayscaleThread(Thread):
         while True:
             condition.acquire()
 
-            num = 0
+            if not extractionQueue:
+                condition.wait()
 
-            print("Converting frame {}".format(num))
 
-            # get the next frame
-            frameAsText = extractionQueue.pop(0)
+            if extractionQueue:
+                num = 0
 
-            # decode the frame
-            jpgRawImage = base64.b64decode(frameAsText)
+                print("Converting frame {}".format(num))
 
-            # convert the raw frame to a numpy array
-            jpgImage = np.asarray(bytearray(jpgRawImage), dtype=np.uint8)
+                # get the next frame
+                frameAsText = extractionQueue.pop(0)
 
-            # get a jpg encoded frame
-            img = cv2.imdecode( jpgImage ,cv2.IMREAD_UNCHANGED)
+                # decode the frame
+                jpgRawImage = base64.b64decode(frameAsText)
 
-            # convert the extracted frame to grayscale
-            grayscaleFrame = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            extractionQueue.append(grayscaleFrame)
+                # convert the raw frame to a numpy array
+                jpgImage = np.asarray(bytearray(jpgRawImage), dtype=np.uint8)
 
-            condition.notify()
-            condition.release()
-            time.sleep(random.random())
+                # get a jpg encoded frame
+                img = cv2.imdecode( jpgImage ,cv2.IMREAD_UNCHANGED)
+
+                # convert the extracted frame to grayscale
+                grayscaleFrame = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                extractionQueue.append(grayscaleFrame)
+
+                condition.notify()
+                condition.release()
+                time.sleep(random.random())
 
 class DisplayThread(Thread):
     def run(self):
